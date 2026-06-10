@@ -243,22 +243,34 @@ Proof.
 Theorem mul_0_r : forall n:nat,
   n * 0 = 0.
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction n as [|n' IHn'].
+- reflexivity.
+- simpl. rewrite -> IHn'. reflexivity.
+Qed.
 
 Theorem plus_n_Sm : forall n m : nat,
   S (n + m) = n + (S m).
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction n as [|n' IHn'].
+- intros m. reflexivity.
+- intros m. simpl. rewrite -> IHn'. reflexivity.
+Qed.
 
 Theorem add_comm : forall n m : nat,
   n + m = m + n.
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction n as [|n' IHn'].
+- intros m. rewrite -> add_0_r. reflexivity.
+- intros m. simpl. rewrite <- plus_n_Sm. rewrite -> IHn'. reflexivity.
+Qed.
 
 Theorem add_assoc : forall n m p : nat,
   n + (m + p) = (n + m) + p.
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction n as [|n' IHn'].
+- intros m p. reflexivity.
+- intros m p. simpl. rewrite -> IHn'. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard (double_plus)
@@ -275,7 +287,10 @@ Fixpoint double (n:nat) :=
 
 Lemma double_plus : forall n, double n = n + n .
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction n as [|n' IHn'].
+- reflexivity.
+- simpl. rewrite -> IHn'. rewrite <- plus_n_Sm. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard (eqb_refl)
@@ -286,7 +301,10 @@ Proof.
 Theorem eqb_refl : forall n : nat,
   (n =? n) = true.
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction n as [|n' IHn'].
+- reflexivity.
+- simpl. rewrite -> IHn'. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard, optional (even_S)
@@ -301,7 +319,10 @@ Proof.
 Theorem even_S : forall n : nat,
   even (S n) = negb (even n).
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction n as [|n' IHn].
+- reflexivity.
+- rewrite -> IHn. rewrite -> negb_involutive. reflexivity.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -521,7 +542,12 @@ Definition manual_grade_for_eqb_refl_informal : option (nat*string) := None.
 Theorem add_shuffle3 : forall n m p : nat,
   n + (m + p) = m + (n + p).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros n m p. rewrite add_assoc. rewrite add_assoc. replace (n+m) with (m+n).
+ - reflexivity.
+ - rewrite add_comm. reflexivity. 
+Qed.
+
+
 
 (** Now prove commutativity of multiplication.  You will probably want
     to look for (or define and prove) a "helper" theorem to be used in
@@ -530,7 +556,10 @@ Proof.
 Theorem mul_comm : forall m n : nat,
   m * n = n * m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction m as [|m' IHm].
+- simpl. intros n. rewrite -> mul_0_r. reflexivity.
+- simpl. intros n. rewrite <- mult_n_Sm. rewrite -> IHm. rewrite -> add_comm. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard, optional (more_exercises)
@@ -546,26 +575,34 @@ Proof.
 Theorem leb_refl : forall n:nat,
   (n <=? n) = true.
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction n as [|n' IHn].
+- reflexivity.
+- simpl. rewrite IHn. reflexivity.
+Qed.
 
 Theorem zero_neqb_S : forall n:nat,
   0 =? (S n) = false.
 Proof.
-  (* FILL IN HERE *) Admitted.
+reflexivity.
+Qed.
 
 Theorem andb_false_r : forall b : bool,
   andb b false = false.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros b. rewrite andb_commutative.
+reflexivity.
+Qed.
 
 Theorem S_neqb_0 : forall n:nat,
   (S n) =? 0 = false.
 Proof.
-  (* FILL IN HERE *) Admitted.
+reflexivity.
+Qed.
 
 Theorem mult_1_l : forall n:nat, 1 * n = n.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros n. rewrite mul_comm. rewrite mult_n_1. reflexivity.
+Qed.
 
 Theorem all3_spec : forall b c : bool,
   orb
@@ -574,17 +611,49 @@ Theorem all3_spec : forall b c : bool,
          (negb c))
   = true.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros [|] [|].
+- reflexivity.
+- reflexivity.
+- reflexivity.
+- reflexivity.
+Qed.
+
+Lemma mult_Sn_m : forall n m : nat, S n * m = n * m + m.
+Proof.
+intros n m. rewrite mul_comm. rewrite <- mult_n_Sm. rewrite mul_comm. reflexivity.
+Qed.
 
 Theorem mult_plus_distr_r : forall n m p : nat,
   (n + m) * p = (n * p) + (m * p).
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction n as [|n' IHn].
+- reflexivity.
+- intros m p.
+  (* Arranging left part to introduce induction hypothesis *)
+  rewrite add_comm. rewrite <- plus_n_Sm.
+  rewrite add_comm. rewrite mult_Sn_m.
+  rewrite -> IHn.
+  (* Arranging right part to match *)
+  rewrite mult_Sn_m.
+  rewrite <- (add_assoc (n' * p) p (m * p)). rewrite (add_comm p (m * p)).
+  rewrite add_assoc.
+  (* Done *)
+  reflexivity.
+Qed.
 
 Theorem mult_assoc : forall n m p : nat,
   n * (m * p) = (n * m) * p.
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction n as [|n' IHn].
+- reflexivity.
+- intros m p.
+  (* Arranging left part to introduce induction hypothesis *)
+  rewrite mult_Sn_m. rewrite IHn. 
+  (* Arranging right part to match *)
+  rewrite mult_Sn_m. rewrite mult_plus_distr_r.
+  (* Done *)
+  reflexivity.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -602,11 +671,19 @@ Inductive bin : Type :=
     from [Basics].  That will make it possible for this file to
     be graded on its own. *)
 
-Fixpoint incr (m:bin) : bin
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+Fixpoint incr (m:bin) : bin :=
+  match m with
+  | Z => B1 Z
+  | B0 b => B1 b
+  | B1 b => B0 (incr b)
+  end.
 
-Fixpoint bin_to_nat (m:bin) : nat
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+Fixpoint bin_to_nat (m:bin) : nat :=
+match m with
+| Z => O
+| B0 b => 2 * (bin_to_nat b)
+| B1 b => 1 + 2 * (bin_to_nat b)
+end.
 
 (** In [Basics], we did some unit testing of [bin_to_nat], but we
     didn't prove its correctness. Now we'll do so. *)
@@ -634,7 +711,15 @@ Fixpoint bin_to_nat (m:bin) : nat
 Theorem bin_to_nat_pres_incr : forall b : bin,
   bin_to_nat (incr b) = 1 + bin_to_nat b.
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction b as [|b1 IH1|b2 IH2].
+- reflexivity.
+- reflexivity.
+- simpl. rewrite <- !plus_n_O. rewrite !IH2.
+  rewrite <- add_assoc. rewrite plus_1_l.
+  rewrite add_assoc. rewrite (add_comm (bin_to_nat b2) 1).
+  rewrite <- add_assoc. rewrite (plus_1_l (bin_to_nat b2 + bin_to_nat b2)).
+  reflexivity.
+Qed.
 
 (** [] *)
 
@@ -642,8 +727,11 @@ Proof.
 
 (** Write a function to convert natural numbers to binary numbers. *)
 
-Fixpoint nat_to_bin (n:nat) : bin
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+Fixpoint nat_to_bin (n:nat) : bin :=
+match n with
+| O => Z
+| S n => incr (nat_to_bin n)
+end.
 
 (** Prove that, if we start with any [nat], convert it to [bin], and
     convert it back, we get the same [nat] which we started with.
@@ -657,8 +745,10 @@ Fixpoint nat_to_bin (n:nat) : bin
 
 Theorem nat_bin_nat : forall n, bin_to_nat (nat_to_bin n) = n.
 Proof.
-  (* FILL IN HERE *) Admitted.
-
+induction n as [|n' IHn].
+- reflexivity.
+- simpl. rewrite bin_to_nat_pres_incr. rewrite IHn. reflexivity.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -682,24 +772,32 @@ Abort.
 
 Lemma double_incr : forall n : nat, double (S n) = S (S (double n)).
 Proof.
-  (* FILL IN HERE *) Admitted.
+reflexivity.
+Qed.
 
 (** Now define a similar doubling function for [bin]. *)
 
-Definition double_bin (b:bin) : bin
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+Definition double_bin (b:bin) : bin :=
+match b with
+| Z => Z
+| b' => B0 b'
+end.
 
 (** Check that your function correctly doubles zero. *)
 
 Example double_bin_zero : double_bin Z = Z.
-(* FILL IN HERE *) Admitted.
+reflexivity. Qed.
 
 (** Prove this lemma, which corresponds to [double_incr]. *)
 
 Lemma double_incr_bin : forall b,
     double_bin (incr b) = incr (incr (double_bin b)).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros [|b0|b1].
+- reflexivity.
+- reflexivity.
+- reflexivity.
+Qed.
 
 (** [] *)
 
@@ -720,7 +818,11 @@ Abort.
     [double_bin] that might have failed to satisfy [double_bin_zero]
     yet otherwise seem correct. *)
 
-(* FILL IN HERE *)
+Definition double_bin_correct_but_failing (b:bin) : bin :=
+match b with
+| Z => B0 Z (* Still equal to 0 but fails [double_bin_zero] *)
+| b' => B0 b'
+end.
 
 (** To solve that problem, we can introduce a _normalization_ function
     that selects the simplest [bin] out of all the equivalent
@@ -737,14 +839,22 @@ Abort.
     end of the [bin] and _only_ processes each bit only once. Do not
     try to "look ahead" at future bits. *)
 
-Fixpoint normalize (b:bin) : bin
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+Fixpoint normalize (b:bin) : bin :=
+match b with
+| Z => Z
+| B0 b' => double_bin (normalize b')
+| B1 b' => B1 (normalize b')
+end.
 
 (** It would be wise to do some [Example] proofs to check that your definition of
     [normalize] works the way you intend before you proceed. They won't be graded,
     but fill them in below. *)
 
-(* FILL IN HERE *)
+Example normalize_zero : normalize Z = Z. reflexivity. Qed.
+Example normalize_zeroes_1 : normalize (B0 Z) = Z. reflexivity. Qed.
+Example normalize_zeroes_2 : normalize (B0 (B0 Z)) = Z. reflexivity. Qed.
+Example normalize_trailing_zero : normalize (B1 (B0 Z)) = B1 Z. reflexivity. Qed.
+Example normalize_leading_zero : normalize (B0 (B1 Z)) = B0 (B1 Z). reflexivity. Qed.
 
 (** Finally, prove the main theorem. The inductive cases could be a
     bit tricky.
@@ -755,9 +865,28 @@ Fixpoint normalize (b:bin) : bin
     progress. We have one lemma for the [B0] case (which also makes
     use of [double_incr_bin]) and another for the [B1] case. *)
 
+Lemma nat_to_bin_nn_double_bin : forall n : nat, nat_to_bin (n + n) = double_bin (nat_to_bin n).
+Proof.
+induction n as [|n' IHn].
+- reflexivity.
+- simpl. rewrite add_comm. simpl. rewrite IHn. rewrite double_incr_bin. reflexivity.
+Qed.
+
+Lemma incr_double_b1 : forall b : bin, incr (double_bin b) = B1 b.
+Proof.
+induction b as [|b0 IH0|b1 IH1].
+- reflexivity.
+- reflexivity.
+- reflexivity.
+Qed.
+
 Theorem bin_nat_bin : forall b, nat_to_bin (bin_to_nat b) = normalize b.
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction b as [|b0 IH0|b1 IH1].
+- reflexivity.
+- simpl. rewrite add_0_r. rewrite nat_to_bin_nn_double_bin. rewrite IH0. reflexivity.
+- simpl. rewrite add_0_r. rewrite nat_to_bin_nn_double_bin. rewrite IH1. rewrite incr_double_b1. reflexivity.
+Qed.
 
 (** [] *)
 
