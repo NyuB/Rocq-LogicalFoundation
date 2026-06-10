@@ -5,3 +5,4 @@
 *.glob
 *.d
 .hasfile
+Makefile.coq*
