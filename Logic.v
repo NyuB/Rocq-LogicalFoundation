@@ -144,7 +144,14 @@ Qed.
 Example plus_is_O :
   forall n m : nat, n + m = 0 -> n = 0 /\ m = 0.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros n m H. split.
+- destruct n as [|n'].
+  + reflexivity.
+  + discriminate H.
+- destruct m as [|m'].
+  + reflexivity.
+  + rewrite add_comm in H. discriminate H.
+Qed.
 (** [] *)
 
 (** So much for proving conjunctive statements.  To go in the other
@@ -222,7 +229,9 @@ Proof.
 Lemma proj2 : forall P Q : Prop,
   P /\ Q -> Q.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros P Q HPQ.
+  destruct HPQ as [_ HQ].
+  apply HQ.  Qed.
 (** [] *)
 
 (** Finally, we sometimes need to rearrange the order of conjunctions
@@ -248,7 +257,12 @@ Theorem and_assoc : forall P Q R : Prop,
   P /\ (Q /\ R) -> (P /\ Q) /\ R.
 Proof.
   intros P Q R [HP [HQ HR]].
-  (* FILL IN HERE *) Admitted.
+  split.
+  - split.
+    + apply HP.
+    + apply HQ.
+  - apply HR.
+Qed.
 (** [] *)
 
 (** The infix notation [/\] is actually just syntactic sugar for
@@ -321,14 +335,22 @@ Qed.
 Lemma mult_is_O :
   forall n m, n * m = 0 -> n = 0 \/ m = 0.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros [|n'] [|m'].
+- intros H. left. reflexivity. 
+- intros H. left. reflexivity. 
+- intros H. right. reflexivity.
+- intros H. discriminate H. 
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, standard (or_commut) *)
 Theorem or_commut : forall P Q : Prop,
   P \/ Q  -> Q \/ P.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros P Q [HP | HQ].
+- right. apply HP.
+- left. apply HQ.
+Qed.
 (** [] *)
 
 (* ================================================================= *)
@@ -369,7 +391,8 @@ Theorem ex_falso_quodlibet : forall (P:Prop),
   False -> P.
 Proof.
   intros P contra.
-  destruct contra.  Qed.
+  destruct contra.
+Qed.
 
 (** The Latin _ex falso quodlibet_ means, literally, "from falsehood
     follows whatever you like"; this is another common name for the
@@ -386,7 +409,9 @@ Proof.
 Theorem not_implies_our_not : forall (P:Prop),
   ~ P -> (forall (Q:Prop), P -> Q).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros P H_not_P Q HP. apply H_not_P in HP as contra.
+destruct contra. 
+Qed.
 (** [] *)
 
 (** Inequality is a very common form of negated statement, so there is a
@@ -454,14 +479,16 @@ Definition manual_grade_for_double_neg_informal : option (nat*string) := None.
 Theorem contrapositive : forall (P Q : Prop),
   (P -> Q) -> (~Q -> ~P).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros P Q HPQ H_not_Q. intros HP. apply H_not_Q. apply HPQ. apply HP.   
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, standard (not_both_true_and_false) *)
 Theorem not_both_true_and_false : forall P : Prop,
   ~ (P /\ ~P).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros P Hcontra. apply (contradiction_implies_anything P). apply Hcontra.
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, advanced (not_PNP_informal)
@@ -469,7 +496,11 @@ Proof.
     Write an informal proof (in English) of the proposition [forall P
     : Prop, ~(P /\ ~P)]. *)
 
-(* FILL IN HERE *)
+(*
+  We show that (P /\ ~P) -> False
+  By the right member we get P -> False
+  Applying the left member then yields False
+*)
 
 (* Do not modify the following line: *)
 Definition manual_grade_for_not_PNP_informal : option (nat*string) := None.
@@ -486,7 +517,10 @@ Definition manual_grade_for_not_PNP_informal : option (nat*string) := None.
 Theorem de_morgan_not_or : forall (P Q : Prop),
     ~ (P \/ Q) -> ~P /\ ~Q.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros P Q H. split.
+- intros HP. apply H. left. apply HP.
+- intros HQ. apply H. right. apply HQ.
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, standard, optional (not_S_inverse_pred)
@@ -495,7 +529,10 @@ Proof.
     [S] and [pred] are inverses of each other: *)
 Lemma not_S_pred_n : ~(forall n : nat, S (pred n) = n).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros P. assert (1 = 0)  as contra. { apply (P 0). }
+discriminate contra.
+Qed.
+
 (** [] *)
 
 (** Since inequality involves a negation, it also requires a little
@@ -590,9 +627,16 @@ Qed.
 (** Use the same technique as above to show that [nil <> x :: xs].
     Do not use the [discriminate] tactic. *)
 
+Definition disc_list (X: Type) (l: list X) : Prop := match l with
+| nil => True
+| _ :: _ => False
+end. 
+
 Theorem nil_is_not_cons : forall X (x : X) (xs : list X), ~ (nil = x :: xs).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros X x xs contra. assert (H : disc_list X nil). { simpl. apply I. }
+rewrite contra in H. simpl in H. apply H. 
+Qed.
 (** [] *)
 
 (* ================================================================= *)
@@ -654,19 +698,38 @@ Qed.
 Theorem iff_refl : forall P : Prop,
   P <-> P.
 Proof.
-  (* FILL IN HERE *) Admitted.
+split.
+- intros H. apply H.
+- intros H. apply H.
+Qed.
 
 Theorem iff_trans : forall P Q R : Prop,
   (P <-> Q) -> (Q <-> R) -> (P <-> R).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros P Q R HPQ HQR. split.
+- intros HP. apply HQR. apply HPQ. apply HP.
+- intros HR. apply HPQ. apply HQR. apply HR.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard (or_distributes_over_and) *)
 Theorem or_distributes_over_and : forall P Q R : Prop,
   P \/ (Q /\ R) <-> (P \/ Q) /\ (P \/ R).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros P Q R. split.
+- intros [HP | [HQ HR]].
+  + split.
+    * left. apply HP.
+    * left. apply HP.
+  + split.
+    * right. apply HQ.
+    * right. apply HR.
+- intros [[HP | HQ] [HP' | HR]].
+  + left. apply HP.
+  + left. apply HP.
+  + left. apply HP'.
+  + right. split. { apply HQ. } {apply HR. }
+Qed.
 (** [] *)
 
 (* ================================================================= *)
@@ -777,7 +840,8 @@ Proof.
 Theorem dist_not_exists : forall (X:Type) (P : X -> Prop),
   (forall x, P x) -> ~ (exists x, ~ P x).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros X P HPx [x Hx]. apply Hx in HPx. apply HPx. 
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard (dist_exists_or)
@@ -788,17 +852,40 @@ Proof.
 Theorem dist_exists_or : forall (X:Type) (P Q : X -> Prop),
   (exists x, P x \/ Q x) <-> (exists x, P x) \/ (exists x, Q x).
 Proof.
-   (* FILL IN HERE *) Admitted.
+intros X P Q. split.
+- intros [x [HPx | HQx]].
+  + left. exists x. apply HPx.
+  + right. exists x. apply HQx.
+- intros [[x HPx] | [x HQx]].
+  + exists x. left. apply HPx.
+  + exists x. right. apply HQx.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard, optional (leb_plus_exists) *)
 Theorem leb_plus_exists : forall n m, n <=? m = true -> exists x, m = n+x.
 Proof.
-(* FILL IN HERE *) Admitted.
+induction n as [|n' Hn].
+- intros [|m'].
+  + intros Hleb. exists 0. reflexivity.
+  + intros Hleb. exists (S m'). reflexivity.
+- destruct m as [|m'].
+  + simpl. intros contra. discriminate contra.
+  + simpl. intros H. assert (exists x : nat, m' = n' + x) as [x Hx].
+    {apply Hn. apply H. }
+    exists (x). simpl. f_equal. apply Hx.
+Qed.
 
 Theorem plus_exists_leb : forall n m, (exists x, m = n+x) -> n <=? m = true.
 Proof.
-  (* FILL IN HERE *) Admitted.
+induction n as [|n' Hn].
+- intros [|m'].
+  + intros _. reflexivity.
+  + intros _. reflexivity.
+- intros [|m'].
+  + intros [x contra]. discriminate contra.
+  + intros [x Hx]. simpl. apply Hn. exists x. injection Hx as Hx. apply Hx.
+Qed.
 
 (** [] *)
 
