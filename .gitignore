@@ -4,5 +4,7 @@
 *.aux
 *.glob
 *.d
+*.cache
+imp*.ml*
 .hasfile
 Makefile.coq*
