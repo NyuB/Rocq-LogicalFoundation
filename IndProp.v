@@ -3029,18 +3029,21 @@ Proof.
         inversion Hs1Ge as [Hoops|]. exfalso. apply Hpump. apply Hoops.
         intros contra. discriminate contra. 
       }
-    exists []. exists s1. exists s2. simpl.
+    apply IH1 in Hs1Ge as [s1l [s1mid [s1r [Hs1App [Hs1mNotNil [Hs1Len Hs1Match]]]]]].
+    exists s1l. exists s1mid. exists (s1r ++ s2). simpl.
     split.
-    { reflexivity. }
+    { rewrite app_assoc. rewrite app_assoc. rewrite <- (app_assoc _ s1l s1mid s1r). rewrite <- Hs1App. reflexivity. }
     split.
-    { apply Hs1NotNil. }
+    { apply Hs1mNotNil. }
     { split. 
-    {
-    
+    { apply Hs1Len. }
+    { intros m. remember (s1l ++ napp m s1mid ++ s1r) as ms1. 
+      assert (ms1 =~ re) as Hmatchms1.
+      { rewrite Heqms1. apply Hs1Match. }
+      rewrite app_assoc. rewrite app_assoc. rewrite <- (app_assoc _ s1l _ s1r). rewrite <- Heqms1.
+      apply (star_app). { apply MStar1. assumption. } { assumption. }}
     }
-    { intros m. apply (napp_star _ _ _ _ _ Hmatch1 Hmatch2). }
-    }
-Admitted.
+Qed.
 
 Lemma pumping : forall T (re : reg_exp T) s,
   s =~ re ->
