@@ -3149,7 +3149,14 @@ Qed.
 (** **** Exercise: 2 stars, standard, especially useful (reflect_iff) *)
 Theorem reflect_iff : forall P b, reflect P b -> (P <-> b = true).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros P b H. destruct H as [|].
+- split. 
+  + intros _. reflexivity.
+  + intros _. assumption.
+- split.
+  + intros HP. exfalso. apply H. apply HP.
+  + intros contra. discriminate contra.
+Qed.
 (** [] *)
 
 (** We can think of [reflect] as a variant of the usual "if and only
@@ -3204,11 +3211,24 @@ Fixpoint count n l :=
   | m :: l' => (if n =? m then 1 else 0) + count n l'
   end.
 
+Lemma add_0_0: forall n m, n + m = 0 -> m = 0.
+Proof.
+destruct n as [| n'].
+  + intros m. simpl. intros H. assumption.
+  + intros m. intros H. discriminate H.
+Qed.
+
 Theorem eqbP_practice : forall n l,
   count n l = 0 -> ~(In n l).
 Proof.
   intros n l Hcount. induction l as [| m l' IHl'].
-  (* FILL IN HERE *) Admitted.
+  + simpl. intros HFalse. apply HFalse.
+  + simpl. destruct (eqbP m n) as [Eqnm | NEqmn].
+    - rewrite Eqnm in Hcount. simpl in Hcount. rewrite eqb_refl in Hcount. discriminate Hcount.
+    - intros [HEq | HIn].
+      * apply NEqmn in HEq. apply HEq.
+      * simpl in Hcount. apply add_0_0 in Hcount. apply IHl' in Hcount as HNotIn. apply HNotIn in HIn as [].
+Qed.
 (** [] *)
 
 (** This small example shows reflection giving us a small gain in
@@ -3241,7 +3261,9 @@ Proof.
     [nostutter]. *)
 
 Inductive nostutter {X:Type} : list X -> Prop :=
- (* FILL IN HERE *)
+| NoStutter_Nil: nostutter []
+| NoStutter_Single (x: X): nostutter [x]
+| NoStutter_Cons (x: X) (head: X) (tail: list X) (H: nostutter (head :: tail)) (Diff: x <> head) : nostutter (x :: head :: tail)
 .
 (** Make sure each of these tests succeeds, but feel free to change
     the suggested proof (in comments) if the given one doesn't work
@@ -3254,34 +3276,32 @@ Inductive nostutter {X:Type} : list X -> Prop :=
     example with more basic tactics.)  *)
 
 Example test_nostutter_1: nostutter [3;1;4;1;5;6].
-(* FILL IN HERE *) Admitted.
-(*
-  Proof. repeat constructor; apply eqb_neq; auto.
-  Qed.
-*)
+Proof.
+repeat constructor; apply eqb_neq; auto.
+Qed.
+
 
 Example test_nostutter_2:  nostutter (@nil nat).
-(* FILL IN HERE *) Admitted.
-(*
-  Proof. repeat constructor; apply eqb_neq; auto.
-  Qed.
-*)
+Proof.
+repeat constructor; apply eqb_neq; auto.
+Qed.
+
 
 Example test_nostutter_3:  nostutter [5].
-(* FILL IN HERE *) Admitted.
-(*
-  Proof. repeat constructor; auto. Qed.
-*)
+Proof.
+repeat constructor; auto.
+Qed.
+
 
 Example test_nostutter_4:      not (nostutter [3;1;1;4]).
-(* FILL IN HERE *) Admitted.
-(*
-  Proof. intro.
-  repeat match goal with
-    h: nostutter _ |- _ => inversion h; clear h; subst
-  end.
-  contradiction; auto. Qed.
-*)
+Proof.
+intro.
+repeat match goal with
+  h: nostutter _ |- _ => inversion h; clear h; subst
+end.
+contradiction; auto.
+Qed.
+
 
 (* Do not modify the following line: *)
 Definition manual_grade_for_nostutter : option (nat*string) := None.
@@ -3317,8 +3337,17 @@ Definition manual_grade_for_nostutter : option (nat*string) := None.
     others.  Do this with an inductive relation, not a [Fixpoint].  *)
 
 Inductive merge {X:Type} : list X -> list X -> list X -> Prop :=
-(* FILL IN HERE *)
+| Merge_Nil : merge [] [] []
+| Merge_App_Left (h1: X) (l1: list X) (l2: list X) (l3: list X) (H: merge l1 l2 l3) : merge (h1 :: l1) (l2) (h1 :: l3)
+| Merge_App_Right (l1: list X) (h2 : X) (l2: list X) (l3: list X) (H: merge l1 l2 l3) : merge (l1) (h2 :: l2) (h2 :: l3)
 .
+
+Example test_merge_1: merge [1;6;2] [4;3] [1;4;6;2;3].
+Proof.
+apply Merge_App_Left. apply Merge_App_Right. apply Merge_App_Left.
+apply Merge_App_Left. apply Merge_App_Right.
+apply Merge_Nil.
+Qed.
 
 Theorem merge_filter : forall (X : Set) (test: X->bool) (l l1 l2 : list X),
   merge l1 l2 l ->
@@ -3326,9 +3355,12 @@ Theorem merge_filter : forall (X : Set) (test: X->bool) (l l1 l2 : list X),
   All (fun n => test n = false) l2 ->
   filter test l = l1.
 Proof.
-  (* FILL IN HERE *) Admitted.
-
-(* FILL IN HERE *)
+intros X test l l1 l2 H. induction H as [| l1 h2 l2 l3 HMerge IHMerge | l1 h2 l2 l3 HMerge IHMerge].
+- simpl. intros _ _. reflexivity.
+- simpl. intros [HTest HAllTrue]. intros HAllFalse. rewrite HTest.
+  rewrite (IHMerge HAllTrue HAllFalse). reflexivity.
+- simpl. intros HAllTrue. intros [HTest HAllFalse]. rewrite HTest. apply (IHMerge HAllTrue HAllFalse).
+Qed.
 
 (** [] *)
 
@@ -3339,9 +3371,39 @@ Proof.
     evaluates to [true] on all their members, [filter test l] is the
     longest.  Formalize this claim and prove it. *)
 
-(* FILL IN HERE
+Lemma subseq_length_le: forall l s, subseq s l -> length s <= length l.
+Proof.
+intros s l HSub. induction HSub.
+- simpl. apply O_le_n.
+- simpl. apply le_S. assumption.
+- simpl. apply le_n_S. assumption.
+Qed.
 
-    [] *)
+Lemma filter_le: forall (X: Type) (test: X -> bool) h t, length (filter test t) <= length (filter test (h::t)).  
+Proof.
+intros X test h t. simpl. destruct (test h).
+- simpl. apply le_S. apply le_n.
+- apply le_n.
+Qed.
+
+Theorem filter_longest_all: forall (test: nat -> bool) (l: list nat) (s: list nat), subseq s l -> All (fun n => test n = true) s -> length s <= length (filter test l).
+Proof.
+intros test l. induction l as [| hl tl IHl].
+- intros s HSub. simpl. remember [] as nil eqn:HEqNil. destruct HSub.
+  + intros _. simpl. apply O_le_n.
+  + discriminate HEqNil.
+  + discriminate HEqNil.
+- intros s HSub. remember (hl::tl) as sl. simpl. destruct HSub.
+  + intros _. simpl. apply O_le_n. 
+  + inversion Heqsl as [[Hh Ht]]. rewrite Hh in *. rewrite Ht in *. destruct Heqsl.
+    intros HAllTrue. apply (IHl l HSub) in HAllTrue as HLe.
+    apply (le_trans (length l) (length (filter test tl)) (length (filter test (hl::tl)))).
+    * assumption.
+    * apply filter_le.
+  + inversion Heqsl as [[Hh Ht]]. rewrite Hh in *. rewrite Ht in *. destruct Heqsl.
+    simpl. intros [HTrue HAllTrue]. rewrite HTrue. simpl. apply (IHl t1 HSub) in HAllTrue as Hlen.
+    apply le_n_S. apply Hlen.
+Qed.
 
 (** **** Exercise: 4 stars, standard, optional (palindromes)
 
@@ -3367,17 +3429,43 @@ Proof.
 *)
 
 Inductive pal {X:Type} : list X -> Prop :=
-(* FILL IN HERE *)
+| Pal_Nil : pal []
+| Pal_Single (x: X) : pal [x]
+| Pal_Sandwich (x: X) (l: list X) (H: pal l) : pal (x :: l ++ [x])
 .
 
 Theorem pal_app_rev : forall (X:Type) (l : list X),
   pal (l ++ (rev l)).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros X l. induction l as [| h t IHl].
+- simpl. apply Pal_Nil.
+- simpl. rewrite app_assoc. apply (Pal_Sandwich h (t ++ rev t)). apply IHl.
+Qed.
+
+Lemma app_cons: forall (X:Type) (h: X) (l : list X), h :: l = [h] ++ l.
+Proof.
+intros X h l. reflexivity.
+Qed.
+
+Lemma app_nil_eq: forall (X:Type) (a b: list X), b = a ++ b -> a = [].
+Proof.
+intros X a b. generalize dependent a. induction b as [| hb tb IHb].
+- intros a. rewrite app_nil_r. intros H'. rewrite H'. reflexivity.
+- intros a. destruct a as [| ha ta].
+  + intros _. reflexivity.
+  + simpl. intros H'. inversion H' as [[Eqab Contra]]. rewrite app_cons in Contra. rewrite app_assoc in Contra. apply IHb in Contra. 
+    destruct ta; simpl in Contra; discriminate Contra.
+Qed.
 
 Theorem pal_rev : forall (X:Type) (l: list X) , pal l -> l = rev l.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros X l. induction l as [| h t IHl].
+- intros _. reflexivity.
+- intros H. induction H as [| | x l Hpal IHpal].
+  + reflexivity.
+  + reflexivity.
+  + simpl. rewrite rev_app_distr. rewrite <- IHpal. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 5 stars, standard, optional (palindrome_converse)
@@ -3389,10 +3477,107 @@ Proof.
      forall l, l = rev l -> pal l.
 *)
 
+Lemma app_dwich: forall (X: Type) (h: X) (a b: list X), h :: a = b ++ [h] ->
+(a = [] /\ b = []) \/ (exists mid, a = mid ++ [h] /\ b = h :: mid).
+intros X h a. induction a as [| ha ta IHa].
+- destruct b as [| hb tb].
+  + simpl. intros _. left. split; reflexivity.
+  + simpl. intros H. destruct tb; discriminate H.
+- induction b as [| hb tb IHb].
+  + simpl. intros H. discriminate H.
+  + simpl. intros H. right. inversion H as [[Eqh Eql]]. rewrite <- Eqh in *.
+    exists tb. split. apply Eql. reflexivity.
+Qed.
+
+Lemma app_non_empty_l: forall (X: Type) (l: list X) (h: X), [] <> l ++ [h].
+Proof.
+intros X l. induction l as [| h t IHl].
+- intros h. simpl. intros Contra. discriminate Contra.
+- intros h'. simpl. intros Contra. discriminate Contra.
+Qed.
+
+Lemma app_non_empty_r: forall (X: Type) (l: list X) (h: X), l ++ [h] <> [].
+Proof.
+intros X l h Contra. assert ([] = l ++ [h]) as ContraL. { rewrite Contra. reflexivity. }
+exfalso. apply app_non_empty_l in ContraL. apply ContraL.
+Qed.
+
+Lemma app_injective: forall (X : Type) (la lb: list X) (ha hb: X), la ++ [ha] = lb ++ [hb] -> la = lb /\ ha = hb.
+Proof.
+intros X la. induction la as [| ha ta IHa].
+- intros lb. destruct lb as [| hb tb].
+  + simpl. intros ha hb H. inversion H as [Eq]. split; reflexivity.
+  + intros a b. simpl. intros Contra. inversion Contra. apply app_non_empty_l in H1. inversion H1.
+- intros lb. induction lb as [| hb tb IHb].
+  + intros a b. simpl. intros Contra. inversion Contra. apply app_non_empty_r in H1. inversion H1. 
+  + intros a b. simpl. intros H. inversion H. apply IHa in H2 as [EqT EqH].
+    split.
+    * rewrite EqT. reflexivity.
+    * apply EqH.
+Qed.
+
+Lemma rev_injective : forall (X : Type) (la lb: list X), rev la = rev lb -> la = lb.
+Proof.
+intros X la. induction la as [| ha ta IHa].
+- intros lb. simpl. induction lb as [| hb tb IHb].
+  + intros _. reflexivity.
+  + intros Contra. simpl in Contra. exfalso. apply app_non_empty_l in Contra. apply Contra.
+- intros lb. induction lb as [| hb tb IHb].
+  + simpl. intros Contra. exfalso. apply app_non_empty_r in Contra. apply Contra.
+  + simpl. intros H. apply app_injective in H as [EqL EqH].
+    apply IHa in EqL. rewrite EqL. rewrite EqH. reflexivity.
+Qed.
+
+Lemma rev_dwich : forall (X: Type)  (l : list X), l = rev l -> l = [] \/ (exists h, l = [h]) \/ (exists h mid, l = h :: mid ++ [h] /\ mid = rev mid).
+Proof.
+intros X l. induction l as [|h t IHl].
+- intros _. left. reflexivity.
+- intros H. right. destruct t as [| ht tt].
+  + left. exists h. reflexivity.
+  + right. simpl in H. simpl. exists h. apply app_dwich in H as [[L R] | [m [EqL EqR]]].
+    * inversion L.
+    * exists m. rewrite EqL. split.
+      { reflexivity. }
+      { 
+        assert (rev (ht :: tt) = h :: rev m) as H.
+        {
+          apply rev_injective. rewrite rev_involutive. simpl. rewrite rev_involutive. apply EqL.
+        }
+        simpl in H. rewrite EqR in H. inversion H as [Eqm]. rewrite rev_involutive. rewrite <- Eqm. reflexivity.
+      }
+Qed.
+
+Lemma app_nil_inj_l : forall (X: Type) (la lb: list X), [] = la ++ lb -> la = [].
+Proof.
+intros X la. destruct la as [| ha ta].
+- intros _ _. reflexivity.
+- intros lb. intros Contra. simpl in Contra. inversion Contra.
+Qed.
+
+Lemma pal_l_l : forall (X: Type) (l: list X), pal (l ++ l) -> pal l.
+Proof.
+intros X l HPal. inversion HPal as [HNil | h HSingle | h lapp HPalApp EqApp].
+- apply app_nil_inj_l in HNil. rewrite HNil. apply Pal_Nil.
+- destruct l as [| hl tl].
+  + apply Pal_Nil.
+  + simpl in HSingle. inversion HSingle as [[Eqh Contra]]. destruct tl; inversion Contra.
+- destruct l as [| hl tl].
+  + apply Pal_Nil.
+  + inversion EqApp as [[Eqh HEqApp]]. rewrite <- Eqh in *.
+    (* WIP *)
+Admitted.
+
 Theorem palindrome_converse: forall {X: Type} (l: list X),
     l = rev l -> pal l.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros X l H. assert (pal (l ++ l)) as HPal.
+{
+  assert (l ++ l = l ++ rev l) as Eqll. { rewrite <- H. reflexivity. }
+  rewrite Eqll. apply pal_app_rev.
+}
+apply (pal_l_l _ _ HPal).
+Qed.
+
 (** [] *)
 
 (** **** Exercise: 4 stars, advanced, optional (NoDup)
