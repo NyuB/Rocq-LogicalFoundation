@@ -3635,7 +3635,11 @@ End RecallIn.
     lists (with elements of type X) that have no elements in
     common. *)
 
-(* FILL IN HERE *)
+Fixpoint Disjoint {X: Type} (l1 l2: list X) : Prop :=
+  match l1 with
+  | [] => True
+  | x :: l => ~(In x l2) /\ Disjoint l l2
+  end.
 
 (** Next, use [In] to define an inductive proposition [NoDup X
     l], which should be provable exactly when [l] is a list (with
@@ -3644,12 +3648,50 @@ End RecallIn.
     bool []] should be provable, while [NoDup nat [1;2;1]] and
     [NoDup bool [true;true]] should not be.  *)
 
-(* FILL IN HERE *)
+Inductive NoDup {X: Type} : (list X) -> Prop :=
+| NoDup_Nil : NoDup []
+| NoDup_Cons (l : list X) (h: X) (HNoDup : NoDup l) (HNotIn : ~(In h l)): NoDup (h::l)
+.
 
 (** Finally, state and prove one or more interesting theorems relating
     [disjoint], [NoDup] and [++] (list append).  *)
 
-(* FILL IN HERE *)
+Lemma in_split: forall (X: Type) (x: X) (la lb: list X), In x (la ++ lb) -> In x la \/ In x lb.
+Proof.
+intros X x la. induction la as [|ha ta IHa].
+- simpl. intros lb. intros Goal. right. apply Goal.
+- simpl. intros lb. destruct lb as [| hb tb].
+  + rewrite app_nil_r. intros Goal. left. apply Goal.
+  + simpl. intros [Hax | Inx].
+    * left. left. apply Hax.
+    * apply IHa in Inx as [Hxta | Inxb].
+      { left. right. apply Hxta. }
+      { right. simpl in Inxb. apply Inxb. }
+Qed.
+
+Lemma not_in_both : forall (X: Type) (x: X) (la lb: list X), ~(In x la) /\ ~(In x lb) -> ~(In x (la ++lb)).
+Proof.
+intros X x la. induction la as [| ha ta IHa].
+- intros lb. simpl. intros [_ Goal]. apply Goal.
+- intros lb. induction lb as [|hb tb IHb].
+  + simpl. intros [Hnot _]. rewrite app_nil_r. apply Hnot.
+  + intros [Hna Hnb]. simpl. intros [Hh | Hin].
+    * simpl in Hna. apply Hna. left. apply Hh.
+    * simpl in Hna. apply in_split in Hin as [Contra | Contra].
+      { apply Hna. right. apply Contra. }
+      { apply Hnb. apply Contra. }
+Qed. 
+
+Theorem disjoint_app_no_dup: forall (X: Type) (la lb: list X), NoDup la -> NoDup lb -> Disjoint la lb -> NoDup (la ++ lb).
+Proof.
+intros X la lb Ha. generalize dependent lb. induction la as [| ha ta IHa].
+- intros lb Hb _. simpl. assumption.
+- intros lb. inversion Ha as [|la ha' HNoDupa HnotIna]. intros Hb. intros HD. inversion HD as [NotInHab Disjointab]. simpl. assert (NoDup (ta ++ lb)) as HNoDupab.
+  { apply IHa. apply HNoDupa. apply Hb. apply Disjointab. }
+  apply NoDup_Cons.
+  { apply HNoDupab. }
+  { apply not_in_both. split. { apply HnotIna. } { apply NotInHab. } }
+Qed.
 
 (* Do not modify the following line: *)
 Definition manual_grade_for_NoDup_disjoint_etc : option (nat*string) := None.
