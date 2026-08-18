@@ -3431,7 +3431,7 @@ Qed.
 Inductive pal {X:Type} : list X -> Prop :=
 | Pal_Nil : pal []
 | Pal_Single (x: X) : pal [x]
-| Pal_Sandwich (x: X) (l: list X) (H: pal l) : pal (x :: l ++ [x])
+| Pal_Sandwich (l: list X) (l': list X) (H : pal l) (H': pal l'): pal (l' ++ l ++ l')
 .
 
 Theorem pal_app_rev : forall (X:Type) (l : list X),
@@ -3439,7 +3439,7 @@ Theorem pal_app_rev : forall (X:Type) (l : list X),
 Proof.
 intros X l. induction l as [| h t IHl].
 - simpl. apply Pal_Nil.
-- simpl. rewrite app_assoc. apply (Pal_Sandwich h (t ++ rev t)). apply IHl.
+- simpl. rewrite app_assoc. apply (Pal_Sandwich (t ++ rev t) [h]). apply IHl. apply Pal_Single.
 Qed.
 
 Lemma app_cons: forall (X:Type) (h: X) (l : list X), h :: l = [h] ++ l.
@@ -3461,10 +3461,10 @@ Theorem pal_rev : forall (X:Type) (l: list X) , pal l -> l = rev l.
 Proof.
 intros X l. induction l as [| h t IHl].
 - intros _. reflexivity.
-- intros H. induction H as [| | x l Hpal IHpal].
+- intros H. induction H as [| | ll l' HPal IHPal HPal' IHPal'].
   + reflexivity.
   + reflexivity.
-  + simpl. rewrite rev_app_distr. rewrite <- IHpal. reflexivity.
+  + simpl. rewrite rev_app_distr. rewrite rev_app_distr. rewrite <- IHPal. rewrite <- IHPal'. rewrite app_assoc. reflexivity.
 Qed.
 (** [] *)
 
@@ -3554,17 +3554,53 @@ intros X la. destruct la as [| ha ta].
 - intros lb. intros Contra. simpl in Contra. inversion Contra.
 Qed.
 
+Lemma app_nil_inj_r : forall (X: Type) (la lb: list X), la ++ lb = [] -> la = [].
+Proof.
+intros X la lb H. assert ([] = la ++ lb) as Swap. { rewrite H. reflexivity. } apply app_nil_inj_l in Swap. apply Swap.
+Qed.
+
+Lemma app_length_inj: forall (X: Type) (la lb lc ld: list X), la ++ lb = lc ++ ld /\ length la = length lc -> la = lc /\ lb = ld.
+Proof.
+intros X la. induction la as [| ha ta IHa].
+- simpl. intros lb lc ld. intros [Eq EqLen]. apply eq_sym in EqLen. apply length_0 in EqLen. split.
+  + rewrite EqLen. reflexivity.
+  + rewrite EqLen in Eq. simpl in Eq. apply Eq.
+- simpl. induction lb as [| hb tb IHb].
+  + intros lc. induction lc as [| hc tc IHc].
+    * simpl. intros ld [Eq EqLen]. discriminate EqLen.
+    * simpl. intros ld [Eq EqLen]. destruct ld as [| hd td].
+      {
+        rewrite app_nil_r in Eq. rewrite app_nil_r in Eq.
+        split. { apply Eq. } { reflexivity. }
+      }
+      { 
+        inversion Eq. inversion EqLen. 
+        let th1 := type of H1 in let th2 := type of H2 in
+        assert (th1 /\ th2) as H'. { split. apply H1. apply H2. } apply (IHa [] tc (hd::td)) in H' as [Eq' EqNil].
+        split.
+        { rewrite Eq'. reflexivity. }
+        { apply EqNil. }
+      }
+  + intros lc. induction lc as [| hc tc IHc].
+Admitted.
+
+Lemma app_inj_l_l: forall (X: Type) (la lb: list X), la ++ la = lb ++ lb -> la = lb.
+Proof.
+intros X la. induction la as [| ha ta IHa].
+- simpl. intros lb. intros H. apply app_nil_inj_l in H. rewrite H. reflexivity.
+- intros lb. induction lb as [|hb tb IHb].
+  + simpl. intros H. apply (app_nil_inj_r X (ha :: ta) _) in H. apply H.
+  + simpl. intros H. inversion H.  rewrite H1 in *.
+Admitted.
+
 Lemma pal_l_l : forall (X: Type) (l: list X), pal (l ++ l) -> pal l.
 Proof.
-intros X l HPal. inversion HPal as [HNil | h HSingle | h lapp HPalApp EqApp].
+intros X l HPal. inversion HPal as [HNil | h HSingleContra | ll l' HPall HPal'].
 - apply app_nil_inj_l in HNil. rewrite HNil. apply Pal_Nil.
 - destruct l as [| hl tl].
-  + apply Pal_Nil.
-  + simpl in HSingle. inversion HSingle as [[Eqh Contra]]. destruct tl; inversion Contra.
-- destruct l as [| hl tl].
-  + apply Pal_Nil.
-  + inversion EqApp as [[Eqh HEqApp]]. rewrite <- Eqh in *.
-    (* WIP *)
+  + discriminate HSingleContra.
+  + simpl in HSingleContra. inversion HSingleContra as [[Eqh Contra]]. destruct tl; inversion Contra.
+- 
 Admitted.
 
 Theorem palindrome_converse: forall {X: Type} (l: list X),
