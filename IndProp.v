@@ -3656,7 +3656,7 @@ Inductive NoDup {X: Type} : (list X) -> Prop :=
 (** Finally, state and prove one or more interesting theorems relating
     [disjoint], [NoDup] and [++] (list append).  *)
 
-Lemma in_split: forall (X: Type) (x: X) (la lb: list X), In x (la ++ lb) -> In x la \/ In x lb.
+Lemma in_either: forall (X: Type) (x: X) (la lb: list X), In x (la ++ lb) -> In x la \/ In x lb.
 Proof.
 intros X x la. induction la as [|ha ta IHa].
 - simpl. intros lb. intros Goal. right. apply Goal.
@@ -3677,7 +3677,7 @@ intros X x la. induction la as [| ha ta IHa].
   + simpl. intros [Hnot _]. rewrite app_nil_r. apply Hnot.
   + intros [Hna Hnb]. simpl. intros [Hh | Hin].
     * simpl in Hna. apply Hna. left. apply Hh.
-    * simpl in Hna. apply in_split in Hin as [Contra | Contra].
+    * simpl in Hna. apply in_either in Hin as [Contra | Contra].
       { apply Hna. right. apply Contra. }
       { apply Hnb. apply Contra. }
 Qed. 
@@ -3711,17 +3711,81 @@ Lemma in_split : forall (X:Type) (x:X) (l:list X),
   In x l ->
   exists l1 l2, l = l1 ++ x :: l2.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros X x l. induction l as [|h t IHl].
+- intros Contra. inversion Contra.
+- simpl. intros [Hxh | Hxt].
+  + exists []. exists t. rewrite Hxh. reflexivity.
+  + apply IHl in Hxt as [la [lb H12]].
+    rewrite H12. exists (h::la). exists lb. reflexivity.
+Qed.
 
 (** Now define a property [repeats] such that [repeats X l] asserts
     that [l] contains at least one repeated element (of type [X]).  *)
 
 Inductive repeats {X:Type} : list X -> Prop :=
-  (* FILL IN HERE *)
+| Repeat_Intro (x: X) (l: list X) (H: In x l) : repeats (x::l)
+| Repeat_Cons (x: X) (l: list X) (H: repeats l) : repeats (x::l)
 .
 
 (* Do not modify the following line: *)
 Definition manual_grade_for_check_repeats : option (nat*string) := None.
+
+(** Thsi is for Ltac practice: Try to trivially solve the left or right branch of the current goal 
+   'tacA + tacB' means 'try tacA then tacB if it failed'
+*)
+Ltac or_assumption := (left; assumption) + (right; assumption).
+
+Definition labelling {X: Type} (items labels: list X) := forall x: X, In x items -> In x labels.
+Lemma labelling_head : forall (X: Type) (h1: X) (l1 l2: list X), labelling (h1 :: l1) (l2) -> labelling l1 l2.
+Proof.
+intros X h1 l1 l2. unfold labelling. simpl. intros H x HIn.
+specialize H with x. apply H. right. apply HIn. 
+Qed.
+
+Lemma labelling_elim_l: forall (X: Type) (t1 l2: list X) (h1: X), labelling (h1::t1) l2 -> labelling t1 l2.
+Proof.
+intros X t1 l2 h1. unfold labelling. simpl. intros H. intros x HIn. apply H. or_assumption.
+Qed.
+
+Lemma either_in_l: forall (X: Type) (la lb: list X) (x: X), In x la -> In x (la ++ lb).
+intros X la. induction la as [|ha ta IHa].
+- simpl. intros lb x [].
+- simpl. intros lb x [Eqh | HIn].
+  + left. apply Eqh.
+  + right. apply IHa. apply HIn.
+Qed.
+
+Lemma either_in_r: forall (X: Type) (la lb: list X) (x: X), In x la -> In x (lb ++ la).
+intros X la. induction la as [|ha ta IHa].
+- simpl. intros lb x [].
+- intros lb. induction lb as [| hb tb IHb].
+  + intros x. simpl. intros H. assumption.
+  + intros x. simpl. intros [Ha | HinA].
+    * right. apply IHb. left. apply Ha.
+    * right. apply IHb. right. apply HinA.
+Qed.
+
+Lemma labelling_elim_x : forall (X: Type) (t1 l2: list X) (h1: X), labelling (h1 :: t1) l2 -> ~(In h1 t1) -> exists (l2': list X), length l2' < length l2 /\ labelling t1 l2'.
+Proof.
+intros X t1. induction t1 as [| ht1 tt1 IH1].
+- unfold labelling. simpl in *. intros l2 h1 H H'. exists []. split.
+  + destruct l2 as [|h' t'].
+    * specialize H with h1. exfalso. apply H. left. reflexivity.
+    * simpl. unfold lt. apply le_n_S. apply le_0_n.
+  + intros x [].
+- intros l2 h1 H Hn. assert (In h1 l2) as Hin1.
+  { unfold labelling in H. apply H. simpl. left. reflexivity. }
+  apply in_split in Hin1 as [ll2 [lr2 Eq2]].
+  exists (ll2 ++ lr2). split.
+  + rewrite Eq2. simpl. rewrite ? app_length. simpl. rewrite <- plus_n_Sm. unfold lt. apply le_n.
+  + assert (labelling (ht1 :: tt1) l2) as Hl2.
+    { apply (labelling_elim_l X (ht1 :: tt1) l2 h1). assumption. }
+    rewrite Eq2 in Hl2. unfold labelling in Hl2.
+    intros x Hx. apply Hl2 in Hx as Hx2. apply in_either in Hx2 as [Hxll2 | [Hh | Hx2]].
+    * apply either_in_l. apply Hxll2.
+    * rewrite <- Hh in Hx. exfalso. apply Hn. apply Hx.
+    * apply either_in_r. apply Hx2.
+Qed.
 
 (** Now, here's a way to formalize the pigeonhole principle.  Suppose
     list [l2] represents a list of pigeonhole labels, and list [l1]
@@ -3737,12 +3801,34 @@ Definition manual_grade_for_check_repeats : option (nat*string) := None.
     hypothesis. *)
 Theorem pigeonhole_principle: excluded_middle ->
   forall (X:Type) (l1  l2:list X),
-  (forall x, In x l1 -> In x l2) ->
+  labelling l1 l2 ->
   length l2 < length l1 ->
   repeats l1.
 Proof.
-  intros EM X l1. induction l1 as [|x l1' IHl1'].
-  (* FILL IN HERE *) Admitted.
+  intros EM X l1. induction l1 as [|h1 l1' IHl1'].
+  - simpl. intros l2 _. intros Contra. inversion Contra.
+  - simpl. intros l2. induction l2 as [| h2 l2' IHl2'].
+    + intros H. unfold labelling in H. specialize H with h1. assert (In h1 []) as Contra. { apply H. left. reflexivity. } inversion Contra.
+    + intros H. simpl. intros HLen.
+      {
+        assert (In h1 l1' \/ ~(In h1 l1')) as [HIn | HInot]. { apply EM. }
+        - apply Repeat_Intro. apply HIn.
+        - apply Repeat_Cons.
+          apply (labelling_elim_x X l1' (h2 :: l2') h1) in HInot as [ll2 [Hll2 Hll2']].
+          + apply (IHl1' ll2).
+            * assumption.
+            * unfold lt in HLen. inversion HLen.
+              { simpl in Hll2. assumption. }
+              { simpl in Hll2. unfold lt in Hll2. unfold lt.
+                assert (S (length l2') <= length l1').
+                {
+                  apply le_S in H1. apply le_S_n. apply H1.
+                }
+                apply (le_trans _ (S (length l2')) _); assumption.
+              }
+          + assumption.
+      }
+Qed.
 (** [] *)
 
 (* ================================================================= *)
