@@ -3554,6 +3554,14 @@ intros X la. destruct la as [| ha ta].
 - intros lb. intros Contra. simpl in Contra. inversion Contra.
 Qed.
 
+Lemma app_nil_inj_l_all : forall (X: Type) (la lb: list X), [] = la ++ lb -> la = [] /\ lb = [].
+Proof.
+intros X la. destruct la as [| ha ta].
+- intros lb H. simpl in H. rewrite <- H. split; reflexivity.
+- intros lb. intros Contra. simpl in Contra. inversion Contra.
+Qed.
+
+
 Lemma app_nil_inj_r : forall (X: Type) (la lb: list X), la ++ lb = [] -> la = [].
 Proof.
 intros X la lb H. assert ([] = la ++ lb) as Swap. { rewrite H. reflexivity. } apply app_nil_inj_l in Swap. apply Swap.
@@ -3958,6 +3966,40 @@ Proof.
     rewrite Happ. apply (MApp s0 _ s1 _ Hmat0 Hmat1).
 Qed.
 
+Lemma app_ne_l : forall (a : ascii) s re0 re1,
+  a :: s =~ (App re0 re1) ->
+  ([ ] =~ re0 /\ a :: s =~ re1) \/
+  exists s0 s1, s = s0 ++ s1 /\ a :: s0 =~ re0 /\ s1 =~ re1.
+Proof.
+intros a s. destruct s as [|h t].
+- intros re0 re1 H. inversion H.
+  + rewrite <- H2 in *. rewrite <- H0 in *. destruct H0. destruct H2.
+    destruct s1 as [|h1 t1].
+    * simpl in *.  left. split; assumption.
+    * simpl in H1. inversion H1. apply app_nil_inj_r in H5. rewrite H5 in *. simpl in *.
+      inversion H1. rewrite H7 in *.
+      right. exists []. exists []. split. { reflexivity. } { rewrite <- H2. split; assumption. }
+- intros re0 re1 H. inversion H.
+  + rewrite <- H2 in *. rewrite <- H0 in *. destruct H0. destruct H2.
+    destruct s1 as [|h1 t1].
+    * simpl in *. left. split; assumption.
+    * simpl in *. inversion H1. right. exists t1. exists s2. split. { reflexivity. } split.
+    { rewrite <- H2. assumption. }
+    { assumption. }
+Qed.
+
+Lemma app_ne_r : forall (a : ascii) s re0 re1,
+  (([ ] =~ re0 /\ a :: s =~ re1) \/
+  exists s0 s1, s = s0 ++ s1 /\ a :: s0 =~ re0 /\ s1 =~ re1) -> 
+  a :: s =~ (App re0 re1).
+Proof.
+intros a s.
+- intros re0 re1 [[HM0 HM1] | [s0 [s1 [HNil [HM0 HM1]]]]].
+  + apply (MApp [] re0 (a::s) re1); assumption.
+  + rewrite HNil. assert (a :: s0 ++ s1 = (a :: s0) ++ s1) as Assoc. { reflexivity. } rewrite Assoc.
+    apply (MApp (a::s0) re0 s1 re1); assumption.
+Qed.
+
 (** **** Exercise: 3 stars, standard, optional (app_ne)
 
     [App re0 re1] matches [a::s] iff [re0] matches the empty string
@@ -3973,7 +4015,8 @@ Lemma app_ne : forall (a : ascii) s re0 re1,
   ([ ] =~ re0 /\ a :: s =~ re1) \/
   exists s0 s1, s = s0 ++ s1 /\ a :: s0 =~ re0 /\ s1 =~ re1.
 Proof.
-  (* FILL IN HERE *) Admitted.
+split. apply app_ne_l. apply app_ne_r.
+Qed.
 (** [] *)
 
 (** [s] is matched by [Union re0 re1] iff [s] matched by
