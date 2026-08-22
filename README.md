@@ -24,4 +24,6 @@ Keeping track of the completion, with remarkable exercises highlighted
     + ✅ Weak pumping lemma
     + ✅ Full Pumping lemma
     + 🛠️ Palindrome converse
+    + ✅ PigeonHole principle
+    + 🛠️ Regex matcher
 
