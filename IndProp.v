@@ -3988,6 +3988,10 @@ intros a s. destruct s as [|h t].
     { assumption. }
 Qed.
 
+Lemma cons_app_assoc: forall (X: Type) (x: X) (la lb: list X), x :: la ++ lb = (x :: la) ++ lb.
+intros X x la lb. reflexivity.
+Qed.
+
 Lemma app_ne_r : forall (a : ascii) s re0 re1,
   (([ ] =~ re0 /\ a :: s =~ re1) \/
   exists s0 s1, s = s0 ++ s1 /\ a :: s0 =~ re0 /\ s1 =~ re1) -> 
@@ -3996,7 +4000,7 @@ Proof.
 intros a s.
 - intros re0 re1 [[HM0 HM1] | [s0 [s1 [HNil [HM0 HM1]]]]].
   + apply (MApp [] re0 (a::s) re1); assumption.
-  + rewrite HNil. assert (a :: s0 ++ s1 = (a :: s0) ++ s1) as Assoc. { reflexivity. } rewrite Assoc.
+  + rewrite HNil. rewrite cons_app_assoc.
     apply (MApp (a::s0) re0 s1 re1); assumption.
 Qed.
 
@@ -4049,11 +4053,50 @@ Qed.
     rephrase [a :: s =~ Star re] to be a [Prop] over general variables,
     using the [remember] tactic.  *)
 
+Lemma star_ne_l : forall (a : ascii) s re,
+  a :: s =~ Star re ->
+  exists s0 s1, s = s0 ++ s1 /\ a :: s0 =~ re /\ s1 =~ Star re.
+Proof.
+intros a s re H.
+remember (Star re) as re' eqn:Eq.
+remember (a :: s) as l eqn:Eq'.
+induction H as [| | | | | | la lb re'' HMa IHMa HMb IHMb].
+- discriminate Eq.
+- discriminate Eq.
+- discriminate Eq.
+- discriminate Eq.
+- discriminate Eq.
+- discriminate Eq'.
+- inversion Eq as [Eqre]. rewrite Eqre in *.
+  destruct la as [| ha ta].
+  + simpl in *. assert (Star re = Star re) as B. { reflexivity. }
+    apply (IHMb) in B as [sa [sb [Eqs [Ma Mb]]]].
+    * exists sa. exists sb. split.
+      { assumption. }
+      { split; assumption. }
+    * apply Eq'.
+  + inversion Eq' as [[Eqh Eqt]]. rewrite Eqh in *.
+    exists ta. exists lb. split.
+    { reflexivity. }
+    { split; assumption. }
+Qed.
+
+Lemma star_ne_r : forall (a : ascii) s re,
+  (exists s0 s1, s = s0 ++ s1 /\ a :: s0 =~ re /\ s1 =~ Star re) ->
+  a :: s =~ Star re.
+Proof.
+intros a s re [s0 [s1 [Eqs [HM0 HM1]]]].
+rewrite Eqs. rewrite cons_app_assoc. apply star_app.
+- apply MStar1. assumption.
+- assumption.
+Qed.
+
 Lemma star_ne : forall (a : ascii) s re,
   a :: s =~ Star re <->
   exists s0 s1, s = s0 ++ s1 /\ a :: s0 =~ re /\ s1 =~ Star re.
 Proof.
-  (* FILL IN HERE *) Admitted.
+split. apply star_ne_l. apply star_ne_r.
+Qed.
 (** [] *)
 
 (** The definition of our regex matcher will include two fixpoint
@@ -4067,8 +4110,15 @@ Definition refl_matches_eps m :=
 
     Complete the definition of [match_eps] so that it tests if a given
     regex matches the empty string: *)
-Fixpoint match_eps (re: reg_exp ascii) : bool
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+Fixpoint match_eps (re: reg_exp ascii) : bool :=
+match re with
+| EmptyStr => true
+| Star _ => true
+| App rea reb => match_eps rea && match_eps reb
+| Union rea reb => match_eps rea || match_eps reb
+| _ => false
+end.
+
 (** [] *)
 
 (** **** Exercise: 3 stars, standard, optional (match_eps_refl)
@@ -4078,7 +4128,37 @@ Fixpoint match_eps (re: reg_exp ascii) : bool
     [ReflectT] and [ReflectF].) *)
 Lemma match_eps_refl : refl_matches_eps match_eps.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros re. induction re.
+- simpl. apply ReflectF. intros Contra. inversion Contra.
+- simpl. apply ReflectT. apply MEmpty.
+- simpl. apply ReflectF. intros Contra. inversion Contra.
+- simpl. destruct (match_eps re1). destruct (match_eps re2).
+  + inversion IHre1. inversion IHre2.
+    assert (([]: list ascii) = [] ++ []) as NilSplit. { reflexivity. }
+    rewrite NilSplit. apply ReflectT. apply MApp; assumption.
+  + simpl. apply ReflectF. intros Contra. inversion Contra. inversion IHre2.
+    assert (s2 = []).
+    { 
+      assert ([] = s1 ++ s2). { rewrite H0. reflexivity. }
+      apply app_nil_inj_l_all in H5 as [_ AssertGoal]. assumption.
+    }
+    rewrite H5 in H3. apply H4. assumption.
+  + simpl. apply ReflectF. intros Contra. inversion Contra. inversion IHre1.
+    assert (s1 = []).
+    { 
+      assert ([] = s1 ++ s2). { rewrite H0. reflexivity. }
+      apply app_nil_inj_l_all in H5 as [AssertGoal _]. assumption.
+    }
+    rewrite H5 in H1. apply H4. assumption.
+- simpl. destruct (match_eps re1).
+  + apply ReflectT. inversion IHre1. apply MUnionL. assumption.
+  + destruct (match_eps re2).
+    * apply ReflectT. inversion IHre2. apply MUnionR. assumption.
+    * apply ReflectF. intros Contra. inversion Contra.
+      { inversion IHre1 as [N1 | N1]. { apply N1. assumption. } }
+      { inversion IHre2 as [N2 | N2]. { apply N2. assumption. } }
+- simpl. apply ReflectT. apply MStar0.
+Qed.
 (** [] *)
 
 (** We'll define other functions that use [match_eps]. However, the
