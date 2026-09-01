@@ -3561,6 +3561,11 @@ intros X la. destruct la as [| ha ta].
 - intros lb. intros Contra. simpl in Contra. inversion Contra.
 Qed.
 
+Lemma app_nil_inj_r_all : forall (X: Type) (la lb: list X), la ++ lb = [] -> la = [] /\ lb = [].
+Proof.
+intros X la lb. intros H. apply app_nil_inj_l_all. rewrite H. reflexivity.
+Qed.
+
 
 Lemma app_nil_inj_r : forall (X: Type) (la lb: list X), la ++ lb = [] -> la = [].
 Proof.
@@ -4186,7 +4191,16 @@ Definition derives d := forall a re, is_der re a (d a re).
     implementation uses [match_eps] in some cases to determine if key
     regex's match the empty string. *)
 Fixpoint derive (a : ascii) (re : reg_exp ascii) : reg_exp ascii
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+:= match re with
+| EmptyStr | EmptySet => EmptySet
+| Star re' => derive a re'
+| Char c => if eqb a c then EmptyStr else EmptySet
+| Union ra rb => Union (derive a ra) (derive a rb)
+| App ra rb =>
+  if match_eps ra
+  then App EmptyStr (derive a rb)
+  else App (derive a ra) rb
+end.
 (** [] *)
 
 (** The [derive] function should pass the following tests. Each test
@@ -4199,45 +4213,64 @@ Example d := ascii_of_nat 100.
 
 (** "c" =~ EmptySet: *)
 Example test_der0 : match_eps (derive c (EmptySet)) = false.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. reflexivity. Qed.
 
 (** "c" =~ Char c: *)
 Example test_der1 : match_eps (derive c (Char c)) = true.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. reflexivity. Qed.
 
 (** "c" =~ Char d: *)
 Example test_der2 : match_eps (derive c (Char d)) = false.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. reflexivity. Qed.
 
 (** "c" =~ App (Char c) EmptyStr: *)
 Example test_der3 : match_eps (derive c (App (Char c) EmptyStr)) = true.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. reflexivity. Qed.
 
 (** "c" =~ App EmptyStr (Char c): *)
 Example test_der4 : match_eps (derive c (App EmptyStr (Char c))) = true.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. reflexivity. Qed.
 
 (** "c" =~ Star c: *)
 Example test_der5 : match_eps (derive c (Star (Char c))) = true.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. reflexivity. Qed.
 
 (** "cd" =~ App (Char c) (Char d): *)
 Example test_der6 :
   match_eps (derive d (derive c (App (Char c) (Char d)))) = true.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. reflexivity. Qed.
 
 (** "cd" =~ App (Char d) (Char c): *)
 Example test_der7 :
   match_eps (derive d (derive c (App (Char d) (Char c)))) = false.
+Proof. reflexivity. Qed.
+
+Lemma app_nil_l: forall (X: Type) (l: list X), l = [] ++ l.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros X l. reflexivity.
+Qed.
+
+Lemma eqb_ascii_refl: forall a b, eqb a b = Datatypes.true -> a = b.
+Proof.
+(* intros a. destruct a as [[|] [|] [|] [|] [|] [|] [|] [|]] eqn:Eqa;
+intros b; destruct b as [[|] [|] [|] [|] [|] [|] [|] [|]] eqn:Eqb; simpl;
+(intros Contra; discriminate Contra) + (intros _; reflexivity). *)
+Admitted. (* Since brute-forcing is long, keep this comented until submission *)
+
+Ltac intros_absurd := (intros contra; discriminate contra) + (intros contra; inversion contra).
+
+Lemma eps_not_derive: forall re, match_eps re = true -> forall s a, ~(s =~(derive a re)).
+Proof.
+intros re. induction re.
+- intros_absurd.
+- intros _. intros s a. simpl. intros_absurd.
+- intros_absurd.
+- simpl. intros H. apply andb_true_iff in H as [Eps1 Eps2].
+  rewrite Eps1. intros s a H. apply app_exists in H as [s0 [s1 [_ [_ Contra]]]].
+  apply (IHre2 Eps2 s1 a). apply Contra.
+- simpl. intros H. apply orb_true_iff in H as [Eps1 | Eps2].
+  + intros s a. (* Not true for Union *)
+Abort.
 
 (** **** Exercise: 4 stars, standard, optional (derive_corr)
 
@@ -4262,7 +4295,88 @@ Proof.
     [Prop]'s naturally using [intro] and [destruct]. *)
 Lemma derive_corr : derives derive.
 Proof.
-  (* FILL IN HERE *) Admitted.
+unfold derives. unfold is_der. intros a re s. generalize dependent s. generalize dependent a. induction re.
+- split; intros contra; inversion contra.
+- split; intros contra; inversion contra.
+- split; intros H; inversion H.
+  + simpl. rewrite eqb_refl. apply MEmpty.
+  + destruct (eqb a t) eqn:EqB.
+    * apply eqb_ascii_refl in EqB. rewrite EqB. apply MChar.
+    * inversion H2.
+  + destruct ((a =? t)%char); inversion H2.
+  + destruct ((a =? t)%char); inversion H1.
+  + destruct ((a =? t)%char); inversion H1.
+  + destruct ((a =? t)%char); inversion H2.
+  + destruct ((a =? t)%char); inversion H2.
+  + destruct ((a =? t)%char); inversion H1.
+- split.
+  + intros H. apply app_ne_l in H as [[HNil HMatch2] | H].
+    Ltac ByIHre2 IHre2 HMatch2 := apply IHre2; apply HMatch2.
+    * inversion HNil as [|
+    |sa rea sb reb Ha Hb H HEqre
+    |snil rea reb H Hsnil HEqre
+    |snil rea reb H Hsnil HEqre
+    | |].
+    { 
+      rewrite (app_nil_l _ s). apply MApp. { apply MEmpty. }
+      { ByIHre2 IHre2 HMatch2. }
+    }
+    {
+      rewrite HEqre. simpl.
+      rewrite (app_nil_l _ s). 
+      destruct (match_eps_refl re1) as [|H'].
+      - rewrite (app_nil_l _ s). apply MApp.
+        + apply MEmpty.
+        + ByIHre2 IHre2 HMatch2.
+      - exfalso. apply H'. apply HNil.
+    }
+    {
+      rewrite HEqre. simpl.
+      rewrite (app_nil_l _ s). 
+      destruct (match_eps_refl re1) as [|H'].
+      - rewrite (app_nil_l _ s). apply MApp.
+        + apply MEmpty.
+        + ByIHre2 IHre2 HMatch2.
+      - exfalso. apply H'. apply HNil.
+    }
+    {
+      rewrite HEqre. simpl.
+      rewrite (app_nil_l _ s). 
+      destruct (match_eps_refl re1) as [|H'].
+      - rewrite (app_nil_l _ s). apply MApp.
+        + apply MEmpty.
+        + ByIHre2 IHre2 HMatch2.
+      - exfalso. apply H'. apply HNil.
+    }
+    {
+      simpl. rewrite (app_nil_l _ s). apply MApp.
+      - apply MEmpty.
+      - ByIHre2 IHre2 HMatch2.
+    }
+    {
+      simpl. rewrite (app_nil_l _ s). apply MApp.
+      - apply MEmpty.
+      - ByIHre2 IHre2 HMatch2.
+    }
+    * destruct H as [s0 [s1 [HApps [HMatch1 HMatch2]]]].
+      simpl. destruct (match_eps_refl re1) as [HNil|H'].
+      { apply IHre1 in HMatch1.
+        inversion HNil as [|
+            |sa rea sb reb Ha Hb H HEqre
+            |snil rea reb H Hsnil HEqre
+            |snil rea reb H Hsnil HEqre
+            | |].
+        - rewrite <- H0 in HMatch1. simpl in HMatch1. inversion HMatch1.
+        - rewrite <- HEqre in HMatch1. simpl in HMatch1. apply app_nil_inj_r_all in H as [NilA NilB].
+          rewrite NilA in Ha.
+          rewrite NilB in Hb.
+          assert (match_eps rea = true) as HEpsA.
+          { destruct (match_eps_refl rea) as [|Contra]. reflexivity. apply Contra in Ha as []. }
+          assert (match_eps reb = true) as HEpsB.
+          { destruct (match_eps_refl reb) as [|Contra]. reflexivity. apply Contra in Hb as []. }
+          rewrite HEpsA in HMatch1.
+      }
+Qed.
 (** [] *)
 
 (** We'll define the regex matcher using [derive]. However, the only
