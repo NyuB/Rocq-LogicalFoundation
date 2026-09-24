@@ -4272,6 +4272,12 @@ intros re. induction re.
   + intros s a. (* Not true for Union *)
 Abort.
 
+Lemma app_derive : forall re1 re2 s1 s2 a,
+a :: s1 =~ re1 -> s2 =~ re2 -> (s1 ++ s2) =~ derive a (App re1 re2).
+Proof.
+intros re1 re2 s1 s2 a H. simpl. destruct (match_eps re1).
+Abort.
+
 (** **** Exercise: 4 stars, standard, optional (derive_corr)
 
     Prove that [derive] in fact always derives strings.
