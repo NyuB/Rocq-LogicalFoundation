@@ -4193,12 +4193,12 @@ Definition derives d := forall a re, is_der re a (d a re).
 Fixpoint derive (a : ascii) (re : reg_exp ascii) : reg_exp ascii
 := match re with
 | EmptyStr | EmptySet => EmptySet
-| Star re' => derive a re'
+| Star re' => App (derive a re') (Star re')
 | Char c => if eqb a c then EmptyStr else EmptySet
 | Union ra rb => Union (derive a ra) (derive a rb)
 | App ra rb =>
   if match_eps ra
-  then App EmptyStr (derive a rb)
+  then Union (App (derive a ra) rb) (derive a rb)
   else App (derive a ra) rb
 end.
 (** [] *)
@@ -4259,24 +4259,24 @@ Admitted. (* Since brute-forcing is long, keep this comented until submission *)
 
 Ltac intros_absurd := (intros contra; discriminate contra) + (intros contra; inversion contra).
 
-Lemma eps_not_derive: forall re, match_eps re = true -> forall s a, ~(s =~(derive a re)).
+Lemma matche_empty_matches_eps: forall re, [] =~ re -> match_eps re = true.
 Proof.
 intros re. induction re.
-- intros_absurd.
-- intros _. intros s a. simpl. intros_absurd.
-- intros_absurd.
-- simpl. intros H. apply andb_true_iff in H as [Eps1 Eps2].
-  rewrite Eps1. intros s a H. apply app_exists in H as [s0 [s1 [_ [_ Contra]]]].
-  apply (IHre2 Eps2 s1 a). apply Contra.
-- simpl. intros H. apply orb_true_iff in H as [Eps1 | Eps2].
-  + intros s a. (* Not true for Union *)
-Abort.
-
-Lemma app_derive : forall re1 re2 s1 s2 a,
-a :: s1 =~ re1 -> s2 =~ re2 -> (s1 ++ s2) =~ derive a (App re1 re2).
-Proof.
-intros re1 re2 s1 s2 a H. simpl. destruct (match_eps re1).
-Abort.
+- intros_absurd. 
+- reflexivity.
+- intros_absurd. 
+- intros H. inversion H.
+  + simpl. apply app_nil_inj_r_all in H1 as [Nil1 Nil2].
+    rewrite Nil1 in *.
+    rewrite Nil2 in *.
+    apply IHre1 in H3. rewrite H3.
+    apply IHre2 in H4. rewrite H4.
+    reflexivity.
+- intros H. inversion H.
+  + simpl. apply IHre1 in H2. rewrite H2. reflexivity.
+  + simpl. apply IHre2 in H1. rewrite H1. apply orb_true_iff. right. reflexivity.
+- reflexivity.
+Qed.
 
 (** **** Exercise: 4 stars, standard, optional (derive_corr)
 
@@ -4317,71 +4317,53 @@ unfold derives. unfold is_der. intros a re s. generalize dependent s. generalize
   + destruct ((a =? t)%char); inversion H1.
 - split.
   + intros H. apply app_ne_l in H as [[HNil HMatch2] | H].
-    Ltac ByIHre2 IHre2 HMatch2 := apply IHre2; apply HMatch2.
-    * inversion HNil as [|
-    |sa rea sb reb Ha Hb H HEqre
-    |snil rea reb H Hsnil HEqre
-    |snil rea reb H Hsnil HEqre
-    | |].
-    { 
-      rewrite (app_nil_l _ s). apply MApp. { apply MEmpty. }
-      { ByIHre2 IHre2 HMatch2. }
-    }
-    {
-      rewrite HEqre. simpl.
-      rewrite (app_nil_l _ s). 
-      destruct (match_eps_refl re1) as [|H'].
-      - rewrite (app_nil_l _ s). apply MApp.
-        + apply MEmpty.
-        + ByIHre2 IHre2 HMatch2.
-      - exfalso. apply H'. apply HNil.
-    }
-    {
-      rewrite HEqre. simpl.
-      rewrite (app_nil_l _ s). 
-      destruct (match_eps_refl re1) as [|H'].
-      - rewrite (app_nil_l _ s). apply MApp.
-        + apply MEmpty.
-        + ByIHre2 IHre2 HMatch2.
-      - exfalso. apply H'. apply HNil.
-    }
-    {
-      rewrite HEqre. simpl.
-      rewrite (app_nil_l _ s). 
-      destruct (match_eps_refl re1) as [|H'].
-      - rewrite (app_nil_l _ s). apply MApp.
-        + apply MEmpty.
-        + ByIHre2 IHre2 HMatch2.
-      - exfalso. apply H'. apply HNil.
-    }
-    {
-      simpl. rewrite (app_nil_l _ s). apply MApp.
-      - apply MEmpty.
-      - ByIHre2 IHre2 HMatch2.
-    }
-    {
-      simpl. rewrite (app_nil_l _ s). apply MApp.
-      - apply MEmpty.
-      - ByIHre2 IHre2 HMatch2.
-    }
+    
+    * simpl. apply matche_empty_matches_eps in HNil. rewrite HNil in *.
+      apply MUnionR. apply IHre2. apply HMatch2.
     * destruct H as [s0 [s1 [HApps [HMatch1 HMatch2]]]].
       simpl. destruct (match_eps_refl re1) as [HNil|H'].
-      { apply IHre1 in HMatch1.
-        inversion HNil as [|
-            |sa rea sb reb Ha Hb H HEqre
-            |snil rea reb H Hsnil HEqre
-            |snil rea reb H Hsnil HEqre
-            | |].
-        - rewrite <- H0 in HMatch1. simpl in HMatch1. inversion HMatch1.
-        - rewrite <- HEqre in HMatch1. simpl in HMatch1. apply app_nil_inj_r_all in H as [NilA NilB].
-          rewrite NilA in Ha.
-          rewrite NilB in Hb.
-          assert (match_eps rea = true) as HEpsA.
-          { destruct (match_eps_refl rea) as [|Contra]. reflexivity. apply Contra in Ha as []. }
-          assert (match_eps reb = true) as HEpsB.
-          { destruct (match_eps_refl reb) as [|Contra]. reflexivity. apply Contra in Hb as []. }
-          rewrite HEpsA in HMatch1.
+      {
+        apply MUnionL. rewrite HApps. apply MApp. 
+        { apply IHre1. apply HMatch1. }
+        { apply HMatch2. }
       }
+      {
+        rewrite HApps. apply MApp.
+        { apply IHre1. apply HMatch1. }
+        { apply HMatch2. }
+      }
+  + simpl. destruct (match_eps_refl re1) as [HNil|H'].
+    * intros H. apply union_disj in H as [HL|HR].
+       { 
+        apply app_exists in HL as [s0 [s1 [HApps [HMatch1 HMatch2]]]].
+        rewrite HApps. rewrite app_cons. rewrite app_assoc. apply MApp.
+        - simpl. apply IHre1. apply HMatch1.
+        - apply HMatch2.
+       }
+       {
+        rewrite (app_nil_l _ (a::s)). apply MApp.
+        - apply HNil.
+        - apply IHre2. apply HR.
+       }
+   * intros H. apply app_exists in H as [s0 [s1 [HApps [HMatch1 HMatch2]]]].
+        rewrite HApps. rewrite app_cons. rewrite app_assoc. apply MApp.
+        { simpl. apply IHre1. apply HMatch1. }
+        { apply HMatch2. }
+- intros a s. split.
+  + simpl. intros H. simpl. apply union_disj in H as [HL|HR].
+    * apply MUnionL. apply IHre1. apply HL.
+    * apply MUnionR. apply IHre2. apply HR.
+  + simpl. intros H. apply union_disj in H as [HL|HR].
+    * apply MUnionL. apply IHre1. apply HL.
+    * apply MUnionR. apply IHre2. apply HR.
+- split.
+  + intros H. apply star_ne_l in H as [s0 [s1 [HApps [HMatch1 HMatch2]]]].
+    simpl. rewrite HApps. apply MApp.
+    * apply IHre in HMatch1. apply HMatch1.
+    * apply HMatch2.
+  + simpl. intros H. inversion H. rewrite app_cons. rewrite app_assoc. apply MStarApp.
+    * simpl. apply IHre in H3. apply H3.
+    * apply H4.
 Qed.
 (** [] *)
 
