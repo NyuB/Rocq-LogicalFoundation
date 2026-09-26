@@ -187,7 +187,8 @@ Proof. reflexivity. Qed.
 Lemma t_apply_empty : forall (A : Type) (x : string) (v : A),
   (__ !-> v) x = v.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros A x v. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard, optional (t_update_eq)
@@ -199,7 +200,8 @@ Proof.
 Lemma t_update_eq : forall (A : Type) (m : total_map A) x v,
   (x !-> v ; m) x = v.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros A m x v. unfold t_update. rewrite eqb_refl. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard, optional (t_update_neq)
@@ -212,7 +214,8 @@ Theorem t_update_neq : forall (A : Type) (m : total_map A) x1 x2 v,
   x1 <> x2 ->
   (x1 !-> v ; m) x2 = m x2.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros A m x1 x2 v H. unfold t_update. rewrite <- eqb_neq in H. rewrite H. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard, optional (t_update_shadow)
@@ -226,7 +229,9 @@ Proof.
 Lemma t_update_shadow : forall (A : Type) (m : total_map A) x v1 v2,
   (x !-> v2 ; x !-> v1 ; m) = (x !-> v2 ; m).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros A m x v1 v2. unfold t_update. apply functional_extensionality.
+intros x'. destruct (x =? x')%string; reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard (t_update_same)
@@ -243,7 +248,11 @@ Proof.
 Theorem t_update_same : forall (A : Type) (m : total_map A) x,
   (x !-> m x ; m) = m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros A m x. unfold t_update. apply functional_extensionality. intros x'.
+destruct (eqb_spec x x').
+- rewrite e. reflexivity.
+- reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard, especially useful (t_update_permute)
@@ -259,7 +268,13 @@ Theorem t_update_permute : forall (A : Type) (m : total_map A)
   =
   (x2 !-> v2 ; x1 !-> v1 ; m).
 Proof.
-  (* FILL IN HERE *) Admitted.
+intros A m v1 v2 x1 x2 Neq. apply functional_extensionality. intros x. unfold t_update.
+destruct (eqb_spec x1 x) as [e1|e1]. 
+- destruct (eqb_spec x2 x)as [e2|e2].
+  + exfalso. apply Neq. rewrite e1. rewrite e2. reflexivity.
+  + reflexivity.
+- destruct (eqb_spec x2 x)as [e2|e2]; reflexivity.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
