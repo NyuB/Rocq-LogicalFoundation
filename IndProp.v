@@ -4383,112 +4383,6 @@ match s with
 end.
 (** [] *)
 
-Lemma regex_match_emptySet_false: forall s, regex_match s EmptySet = false.
-Proof.
-intros s. induction s as [| h t IH].
-- reflexivity.
-- simpl. apply IH.
-Qed.
-
-Lemma regex_match_emptyStr_nil: forall s, regex_match s EmptyStr = true -> s = [].
-Proof.
-intros s. induction s as [| h t IH].
-- reflexivity.
-- simpl. intros H. rewrite regex_match_emptySet_false in H. inversion H.
-Qed.
-
-Lemma regex_match_union_right: forall s re1 re2, regex_match s re2 = true -> regex_match s (Union re1 re2) = true.
-Proof.
-intros s. induction s as [|h t IH].
-- intros re1 re2 H. simpl in *. rewrite H. destruct (match_eps re1); reflexivity.
-- intros re1 re2 H. simpl in *. apply (IH (derive h re1) (derive h re2)) in H. apply H.
-Qed.
-
-Lemma regex_match_union_left: forall s re1 re2, regex_match s re1 = true -> regex_match s (Union re1 re2) = true.
-Proof.
-intros s. induction s as [|h t IH].
-- intros re1 re2 H. simpl in *. rewrite H. destruct (match_eps re1); reflexivity.
-- intros re1 re2 H. simpl in *. apply (IH (derive h re1) (derive h re2)) in H. apply H.
-Qed.
-
-Lemma regex_match_app_both: forall s1 s2 re1 re2,
-  regex_match s1 re1 = true ->
-  regex_match s2 re2 = true ->
-  regex_match (s1 ++ s2) (App re1 re2) = true.
-Proof.
-intros s1. induction s1 as [|h1 t1 IH1].
-- intros s2. destruct s2 as [|h2 t2].
-  + intros re1 re2 H1 H2. simpl in *. rewrite H1. rewrite H2. reflexivity.
-  + intros re1 re2 H1 H2. simpl in *. rewrite H1. apply regex_match_union_right. apply H2.
-- intros s2. induction s2 as [|h2 t2 IH2].
-  + intros re1 re2 H1 H2. simpl in *. destruct (match_eps re1).
-    * apply regex_match_union_left. apply IH1.
-      { apply H1. }
-      { simpl. apply H2. }
-    * apply IH1.
-      { apply H1. }
-      { simpl. apply H2. }
-  + intros re1 re2 H1 H2. simpl in *. destruct (match_eps re1) eqn:Eqb.
-     * apply regex_match_union_left. 
-       apply IH1. { apply H1. } { simpl. apply H2. } 
-     * apply IH1. { apply H1. } { simpl. apply H2. }
-Qed.
-
-Lemma regex_match_either_union: forall s re1 re2,
-  regex_match (s) (Union re1 re2) = true ->
-  (
-    regex_match s re1 = true \/ regex_match s re2 = true
-  ).
-Proof.
-intros s. induction s as [|h t IH].
-- intros re1 re2. apply orb_true_iff.
-- intros re1 re2. simpl. intros H. apply IH in H. apply H.
-Qed.
-
-Lemma regex_match_both_app: forall s re1 re2,
-  regex_match (s) (App re1 re2) = true ->
-  exists s1 s2, (s = s1 ++ s2) /\ regex_match s1 re1 = true /\ regex_match s2 re2 = true.
-Proof.
-intros s. induction s as [|h t IH].
-- intros re1 re2 H. simpl in *. exists []. exists []. split.
-  + reflexivity.
-  + apply andb_true_iff in H as [Eps1 Eps2]. split.
-    * simpl. rewrite Eps1. reflexivity.
-    * simpl. rewrite Eps2. reflexivity.
-- intros re1 re2 H. simpl in H. destruct (match_eps re1) eqn:EqEps.
-  + apply regex_match_either_union in H as [Left | Right].
-    * apply IH in Left as [s1 [s2 [Eqt [Match1 Match2]]]].
-      exists (h::s1). exists s2.
-      split.
-      { rewrite Eqt. reflexivity. }
-      split.
-      { simpl. apply Match1. }
-      { apply Match2. }
-    * exists []. exists (h::t).
-      split.
-      { reflexivity. }
-      split.
-      { simpl. apply EqEps. }
-      { simpl. apply Right. }
-  + apply IH in H as [s1 [s2 [Eqt [Match1 Match2]]]].
-      exists (h::s1). exists s2.
-      split.
-      { rewrite Eqt. reflexivity. }
-      split.
-      { simpl. apply Match1. }
-      { apply Match2. }
-Qed.
-
-Lemma regex_match_derive_cons: forall s h re, regex_match s (derive h re) = true -> regex_match (h::s) re = true.
-Proof.
-intros s h re H. simpl. apply H.
-Qed.
-
-Lemma regex_match_derive_elim: forall s h re, regex_match (h::s) re = true -> regex_match s (derive h re) = true.
-Proof.
-intros s h re. simpl. intros H. apply H.
-Qed.
-
 (** **** Exercise: 3 stars, standard, optional (regex_match_correct)
 
     Finally, prove that [regex_match] in fact matches regexes.
@@ -4504,109 +4398,17 @@ Qed.
     [s =~ derive x re], and vice versa. *)
 Theorem regex_match_correct : matches_regex regex_match.
 Proof.
-intros s re. generalize dependent s. induction re.
-- intros s. apply iff_reflect. split.
-  + intros_absurd.
-  + intros H. rewrite regex_match_emptySet_false in H. inversion H.
-- intros s. apply iff_reflect. split.
-  + intros H. inversion H. reflexivity.
-  + simpl. intros H. apply regex_match_emptyStr_nil in H. rewrite H. apply MEmpty.
-- intros s. apply iff_reflect. split.
-  + intros H. inversion H. simpl. rewrite eqb_refl. reflexivity.
-  + destruct s as [|h s'].
-    * simpl. intros_absurd.
-    * simpl. destruct (eqb h t) eqn:EqB.
-      { 
-        apply eqb_ascii_refl in EqB. rewrite EqB in *.
-        intros H. apply regex_match_emptyStr_nil in H. rewrite H. apply MChar.
-      }
-      {
-        rewrite regex_match_emptySet_false. intros_absurd.
-      }
-
+intros s. induction s as [|h t IH].
+- intros re. apply iff_reflect. split.
+  + intros H. simpl. destruct (match_eps re) eqn:Eps.
+    * reflexivity.
+    * rewrite (matche_empty_matches_eps re H) in Eps. inversion Eps.
+  + simpl. intros H. apply matche_eps_matches_empty. apply H.
 (** Factorize the specialize/reflect machinery *)
 Ltac apply_ih_refl IH s H := specialize IH with s; apply reflect_iff in IH; apply IH in H.
-- intros s. apply iff_reflect. split.
-  + intros H. apply app_exists in H as [s1 [s2 [HApps [HMatch1 HMatch2]]]].
-    destruct s as [|h s'].
-    * simpl. apply app_nil_inj_l_all in HApps as [HNil1 HNil2].
-      rewrite HNil1 in *. apply matche_empty_matches_eps in HMatch1. rewrite HMatch1.
-      rewrite HNil2 in *. apply matche_empty_matches_eps in HMatch2. rewrite HMatch2.
-      reflexivity.
-    * rewrite HApps. apply regex_match_app_both.
-      { apply_ih_refl IHre1 s1 HMatch1. apply HMatch1. }
-      { apply_ih_refl IHre2 s2 HMatch2. apply HMatch2. }
-   + destruct s as [|h s'].
-     * simpl. intros H. rewrite (app_nil_l _ []).
-       apply andb_true_iff in H as [Eps1 Eps2].
-       apply MApp.
-       { apply matche_eps_matches_empty. apply Eps1. }
-       { apply matche_eps_matches_empty. apply Eps2. }
-     * simpl. destruct (match_eps re1) eqn:Eqb.
-       {
-        intros H. apply regex_match_either_union in H as [Left | Right].
-        - apply regex_match_both_app in Left as [s1 [s2 [Eqs [Match1 Match2]]]].
-          rewrite Eqs. rewrite app_cons. rewrite app_assoc. apply MApp.
-          + apply regex_match_derive_cons in Match1.
-            apply_ih_refl IHre1 (h::s1) Match1.
-            simpl. apply Match1.
-          + apply_ih_refl IHre2 s2 Match2.
-            simpl. apply Match2.
-        - rewrite (app_nil_l _ (h::s')). apply MApp.
-          + apply matche_eps_matches_empty in Eqb. apply Eqb.
-          + apply regex_match_derive_cons in Right.
-            apply_ih_refl IHre2 (h::s') Right.
-            simpl. apply Right.
-       }
-
-       {
-          intros H. apply regex_match_both_app in H as [s1 [s2 [Eqs [Match1 Match2]]]].
-          apply regex_match_derive_cons in Match1.
-          rewrite Eqs. rewrite app_cons. rewrite app_assoc.
-           apply MApp.
-           + apply_ih_refl IHre1 (h::s1) Match1.
-             simpl. apply Match1.
-           + apply_ih_refl IHre2 (s2) Match2.
-            simpl. apply Match2.
-       }
-- intros s. apply iff_reflect. split.
-  + destruct s as [|h t].
-    * intros H. inversion H.
-      { 
-        simpl. apply matche_empty_matches_eps in H2. rewrite H2. reflexivity.
-      }
-      {
-        simpl. apply matche_empty_matches_eps in H1. rewrite H1.
-        destruct (match_eps re1); reflexivity.
-      }
-    * intros H. simpl. apply union_disj in H as [Left |Right].
-      {
-        apply regex_match_union_left.
-        apply_ih_refl IHre1 (h::t) Left.
-        simpl. apply Left.
-      }
-      {
-        apply regex_match_union_right.
-        apply_ih_refl IHre2 (h::t) Right.
-        simpl. apply Right.
-      }
-  + intros H. apply regex_match_either_union in H as [Left|Right].
-    * apply MUnionL.
-      apply_ih_refl IHre1 s Left.
-      simpl. apply Left.
-    * apply MUnionR.
-      apply_ih_refl IHre2 s Right.
-      simpl. apply Right.
-- intros s. apply iff_reflect. split.
-  + induction s as [|h t IH].
-    * intros _. reflexivity.
-    * intros H. simpl.
-      apply star_ne_l in H as [s1 [s2 [Eqs [Match1 Match2]]]].
-      rewrite Eqs. apply regex_match_app_both.
-      { apply_ih_refl IHre (h::s1) Match1. simpl in Match1. apply Match1. }
-      { 
-      }
-
+- intros re. apply iff_reflect. split.
+  + intros H. simpl. apply derive_corr in H. apply_ih_refl IH (derive h re) H. apply H.
+  + simpl. intros H. apply_ih_refl IH (derive h re) H. apply derive_corr in H. apply H.
 Qed.
 (** [] *)
 
