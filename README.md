@@ -25,5 +25,7 @@ Keeping track of the completion, with remarkable exercises highlighted
     + ✅ Full Pumping lemma
     + 🛠️ Palindrome converse
     + ✅ PigeonHole principle
-    + 🛠️ Regex matcher
-
+    + ✅ Regex matcher
+- ✅ [Maps](./Maps.v)
+- ✅ [ProofObjects](./ProofObjects.v)
+- ✅ [IndPrinciples](./IndPrinciples.v)
