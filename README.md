@@ -29,3 +29,4 @@ Keeping track of the completion, with remarkable exercises highlighted
 - ✅ [Maps](./Maps.v)
 - ✅ [ProofObjects](./ProofObjects.v)
 - ✅ [IndPrinciples](./IndPrinciples.v)
+- ✅ [Rel](./Rel.v)
